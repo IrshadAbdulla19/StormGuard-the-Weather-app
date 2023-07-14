@@ -1,22 +1,25 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:http/http.dart' as http;
+import 'package:weather_app/application/bloc/wether_bloc.dart';
 import 'package:weather_app/core/contsnts.dart' as k;
 import 'package:location/location.dart';
 import 'package:weather_app/infrastructure/db/model/weather_model.dart';
 
-Future<void> requestPermissionAndTurnOnDeviceGPS() async {
+Future<void> requestPermissionAndTurnOnDeviceGPS(BuildContext context) async {
   Location location = new Location();
   bool serviceEnabled = await location.serviceEnabled();
   if (!serviceEnabled) {
     serviceEnabled = await location.requestService();
     if (!serviceEnabled) {
-      return requestPermissionAndTurnOnDeviceGPS();
+      return requestPermissionAndTurnOnDeviceGPS(context);
     }
   }
   if (serviceEnabled) {
-    getCurrentLocation();
+    getCurrentLocation(context);
   }
 }
 
@@ -27,7 +30,7 @@ Future<bool> checkPermission() async {
       permission == geo.LocationPermission.whileInUse;
 }
 
-getCurrentLocation() async {
+getCurrentLocation(BuildContext context) async {
   bool isval = await checkPermission();
   print("the pemission is ${isval}");
   if (await checkPermission()) {
@@ -36,7 +39,7 @@ getCurrentLocation() async {
       forceAndroidLocationManager: true,
     );
 
-    getWeatherByPosition(p);
+    getWeatherByPosition(p, context);
   } else {
     requestPermission();
   }
@@ -55,7 +58,7 @@ Future<void> requestPermission() async {
   }
 }
 
-getWeatherByPosition(geo.Position position) async {
+getWeatherByPosition(geo.Position position, BuildContext context) async {
   var clint = http.Client();
   var uri =
       "${k.domain}lat=${position.latitude}&lon=${position.longitude}&appid=${k.apiKeys}";
@@ -65,7 +68,8 @@ getWeatherByPosition(geo.Position position) async {
     var data = response.body;
     print(data);
     var decodeData = json.decode(data);
-    updateUI(decodeData);
+    var wether = await updateUI(decodeData);
+    context.read<WetherBloc>().add(WetherUpdateEvent(wether: wether));
   } else {
     print(response.statusCode);
   }
